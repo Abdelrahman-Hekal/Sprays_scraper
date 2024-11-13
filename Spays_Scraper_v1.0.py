@@ -7,6 +7,7 @@ import sys
 import xlsxwriter
 import warnings
 import re
+import ast
 import sys
 import shutil
 import traceback
@@ -83,8 +84,8 @@ def scrape_prods(outputs, settings):
                 time.sleep(10)
 
         nprods = int(re.findall(r'Found\s([\d,]+)\sproducts', response.text)[0].replace(',', ''))
+        #nprods = 10
         print(f"Number of products: {nprods}")
-        #print('-'*75)
         npages = math.ceil(nprods/10)
         iprod = 0
         for page in range(1, npages+1):
@@ -112,7 +113,7 @@ def scrape_prods(outputs, settings):
                 for _ in range(10):
                     try:
                         response = requests.get(prodUrl)
-                        time.sleep(1)
+                        time.sleep(0.5)
                         if response.status_code == 200:
                             prodData = json.loads(re.findall(
                             '<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', response.text)[0])
@@ -265,16 +266,68 @@ def scrape_prods(outputs, settings):
                 "Description":"General Description",
                 })
 
-            df[["Estimated Ready to Ship", "Spray Pattern"]] = df[["Estimated Ready to Ship", "Spray Pattern"]].applymap(convert_key_format)
-            df["Material Composition"] = df["Material Composition"].apply(lambda x:x.replace("_", " "))
+            if "Estimated Ready to Ship" in df.columns:
+                df["Estimated Ready to Ship"] = df["Estimated Ready to Ship"].apply(convert_key_format)
+            if "Spray Pattern" in df.columns:
+                df["Spray Pattern"] = df["Spray Pattern"].apply(convert_key_format)
+            if "Material Composition" in df.columns:
+                df["Material Composition"] = df["Material Composition"].apply(lambda x:x.replace("_", " "))
             # Reorder the DataFrame
-            orderedCols = ["Product Name", "Product URL", "Product Code", "Product Image", "Estimated Ready to Ship", "Product Bulletin Link", "Catalog Detail Link", "Interactive Model Link", "General Description", "Capacity Size", "Capacity Size Description", "Inlet Connection Gender", "Inlet Connection Gender Description", "Inlet Connection Size", "Inlet Connection Size Description", "Inlet Connection Type", "Inlet Connection Type Description", "Inlet Connection Thread Type", "Inlet Connection Thread Type Description", "Material Composition", "Material Composition Description", "Model", "Product Type", "Brand", "Brand Description", "A Dimension Metric", "A Dimension Us", "B Dimension Metric", "B Dimension Us", "Maximum Temperature Metric", "Maximum Temperature Us", "Spray Pattern", "Spray Pattern Description", "Air Flow Rate Us", "Air Flow Rate Metric", "Price Type", "Audience", "Color", "Marketing Score", "Marketing Score Description", "Sales Score", "Sales Score Description", "Business Score", "Business Score Description"]
+            orderedCols = ["Product Name", "Product URL", "Product Code", "Product Image", "Estimated Ready to Ship", "Product Bulletin Link", "Catalog Detail Link", "Interactive Model Link", "General Description", "Capacity Size", "Capacity Size Description", "Inlet Connection Gender", "Inlet Connection Gender Description", "Inlet Connection Size", "Inlet Connection Size Description", "Inlet Connection Type", "Inlet Connection Type Description", "Inlet Connection Thread Type", "Inlet Connection Thread Type Description", "Material Composition", "Material Composition Description", "Model", "Product Type", "Operating Pressure Range Metric", "Operating Pressure Range Us", "Brand", "Brand Description", "Impact Group", "A Dimension Metric", "A Dimension Us", "B Dimension Metric", "B Dimension Us", "Liquid Flow Rate Range Metric", "Liquid Flow Rate Range Us", "Liquid Flow Rate Range Description", "Maximum Free Passage", "Maximum Recommended Tank Diameter Metric", "Maximum Recommended Tank Diameter Us", "Maximum Recommended Tank Diameter Description", "Maximum Temperature Metric", "Maximum Temperature Us", "Minimum Tank Opening Metric", "Minimum Tank Opening Us", "Operating Principle", "Recommended Strainer Mesh", "Spray Coverage", "Spray Coverage Description", "Tank Mounting Options", "Tank Mounting Options Description", "Spray Pattern", "Spray Pattern Description", "Air Flow Rate Us", "Air Flow Rate Metric", "Price Type", "Audience", "Color", "Marketing Score", "Marketing Score Description", "Sales Score", "Sales Score Description", "Business Score", "Business Score Description"]
             existingCols = [col for col in orderedCols if col in df.columns]
             remainingCols = [col for col in df.columns if col not in existingCols]
             newCols = existingCols + remainingCols          
             df = df[newCols]
+            df = sort_discerption_columns(df, orderedCols)
+
+            # update range columns format
+            for col in df.columns:
+                if "Range" in col and "Description" not in col:
+                    df[col] = df[col].apply(convert_range_string)
 
             df.to_csv(path, index=False, encoding="windows-1252")      
+
+def convert_range_string(input_str):
+    # Extract the dictionary part and the unit using regex
+    match = re.match(r"\{(.+?)\}\s*(\S+)", input_str)
+    if not match:
+        return input_str  # Return as-is if the format is unexpected
+    
+    dict_str, unit = match.groups()
+    
+    # Safely parse the dictionary string
+    try:
+        range_dict = ast.literal_eval("{" + dict_str + "}")
+        minimum = range_dict.get('minimum')
+        maximum = range_dict.get('maximum')
+        
+        # Format the output as "min - max unit"
+        return f"{minimum} - {maximum} {unit}"
+    except (ValueError, SyntaxError):
+        return input_str  # Return as-is if there's an error in parsing
+
+# Sort function
+def sort_discerption_columns(df, orderedCols):
+    columns = df.columns.tolist()
+    reordered_columns = []
+    descreption_columns = {}
+    
+    # Separate base and "Discerption" columns
+    for col in columns:
+        if col in orderedCols:
+            reordered_columns.append(col)
+        elif col.endswith(" Discerption"):
+            base_name = col.replace(" Discerption", "")
+            descreption_columns[base_name] = col  # Map base name to its description column
+        else:
+            # Add the base column to reordered list
+            reordered_columns.append(col)
+            # If there is a corresponding "Discerption" column, add it right after the base
+            if col.replace(" Us", "") in descreption_columns:
+                reordered_columns.append(descreption_columns[col])
+
+    # Return the DataFrame with reordered columns
+    return df[reordered_columns]
 
 def convert_key_format(key):
     # Return NaN as is if the value is NaN
