@@ -184,15 +184,55 @@ def scrape_prods(outputs, settings):
                 try:
                     for attr in prodData["product"]["attributes"]:
                         try:
-                            prodDetails[attr["typeCode"]] = attr["value"]
-                            if attr["unitSymbol"]:
-                                prodDetails[attr["typeCode"]] = str(prodDetails[attr["typeCode"]]) + ' ' + attr["unitSymbol"]
+                            # Initialize the base value without any suffix
+                            base_key = attr["typeCode"]
+                            # Loop over each variation within the "displays" list if it exists
+                            if "displays" in attr and attr["displays"]:
+                                for display in attr["displays"]:
+                                    # Determine suffix based on the "variation" key
+                                    if "variation" in display and display["variation"] != "Invariant":
+                                        suffix = display["variation"]
+                                    else:
+                                        suffix = ""
 
-                            if "conditions" in attr and attr["conditions"]:
-                                try:
-                                    prodDetails[attr["typeCode"]] = str(prodDetails[attr["typeCode"]]) + " @ " + str(attr["conditions"][0]["value"]) + " " + attr["conditions"][0]["unitSymbol"]
-                                except:
-                                    prodDetails[attr["typeCode"]] = str(prodDetails[attr["typeCode"]]) + " @ " + str(attr["conditions"][0]["value"])
+                                    # Construct the full key with suffix and retrieve the value
+                                    key = base_key + suffix
+                                    try:
+                                        value = display["value"]["en"]
+                                    except:
+                                        value = display["value"]
+
+                                    # Check for a unit symbol and add it to the value if it exists
+                                    if "unitSymbol" in display and display["unitSymbol"]:
+                                        value = f"{value} {display['unitSymbol']}"
+
+                                    # Check for conditions and append if they exist
+                                    if "conditions" in attr and attr["conditions"]:
+                                        try:
+                                            condition = attr["conditions"][0]
+                                            if "displays" in condition and condition["displays"]:
+                                                for conditionDisplay in condition["displays"]:
+                                                    if conditionDisplay["variation"] == display["variation"]:
+                                                        try:
+                                                            condition_value = conditionDisplay["value"]["en"]
+                                                        except:
+                                                            condition_value = conditionDisplay["value"]
+                                                        condition_unit = conditionDisplay.get("unitSymbol", "")
+                                                        if condition_unit:
+                                                            value += f" @ {condition_value} {condition_unit}"
+                                                        else:
+                                                            value += f" @ {condition_value}"
+                                        except:
+                                            pass
+
+                                    # Assign the final value to prodDetails with the constructed key
+                                    prodDetails[key] = value
+
+                            else:
+                                # If no variations are found, simply store the default value
+                                prodDetails[base_key] = attr["value"]
+                                if "unitSymbol" in attr:
+                                    prodDetails[base_key] += f" {attr['unitSymbol']}"
                         except:
                             pass
                 except:
@@ -228,7 +268,7 @@ def scrape_prods(outputs, settings):
             df[["Estimated Ready to Ship", "Spray Pattern"]] = df[["Estimated Ready to Ship", "Spray Pattern"]].applymap(convert_key_format)
             df["Material Composition"] = df["Material Composition"].apply(lambda x:x.replace("_", " "))
             # Reorder the DataFrame
-            orderedCols = ["Product Name", "Product URL", "Product Code", "Model", "Product Image", "Estimated Ready to Ship", "Product Bulletin Link", "Catalog Detail Link", "Interactive Model Link", "Product Description", "Capacity Size", "Capacity Size Description", "Inlet Connection Gender", "Inlet Connection Gender Description", "Inlet Connection Size", "Inlet Connection Size Description", "Inlet Connection Type", "Inlet Connection Type Description", "Inlet Connection Thread Type", "Inlet Connection Thread Type Description"]
+            orderedCols = ["Product Name", "Product URL", "Product Code", "Product Image", "Estimated Ready to Ship", "Product Bulletin Link", "Catalog Detail Link", "Interactive Model Link", "General Description", "Capacity Size", "Capacity Size Description", "Inlet Connection Gender", "Inlet Connection Gender Description", "Inlet Connection Size", "Inlet Connection Size Description", "Inlet Connection Type", "Inlet Connection Type Description", "Inlet Connection Thread Type", "Inlet Connection Thread Type Description", "Material Composition", "Material Composition Description", "Model", "Product Type", "Brand", "Brand Description", "A Dimension Metric", "A Dimension Us", "B Dimension Metric", "B Dimension Us", "Maximum Temperature Metric", "Maximum Temperature Us", "Spray Pattern", "Spray Pattern Description", "Air Flow Rate Us", "Air Flow Rate Metric", "Price Type", "Audience", "Color", "Marketing Score", "Marketing Score Description", "Sales Score", "Sales Score Description", "Business Score", "Business Score Description"]
             existingCols = [col for col in orderedCols if col in df.columns]
             remainingCols = [col for col in df.columns if col not in existingCols]
             newCols = existingCols + remainingCols          
