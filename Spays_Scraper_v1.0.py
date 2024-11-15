@@ -84,7 +84,7 @@ def scrape_prods(outputs, settings):
                 time.sleep(10)
 
         nprods = int(re.findall(r'Found\s([\d,]+)\sproducts', response.text)[0].replace(',', ''))
-        #nprods = 10
+        #nprods = 100
         print(f"Number of products: {nprods}")
         npages = math.ceil(nprods/10)
         iprod = 0
@@ -106,8 +106,7 @@ def scrape_prods(outputs, settings):
             prods = searchData["props"]["pageProps"]["finderData"]["facetedSearchProductViewModels"]
             for prod in prods:
                 prodUrl = "https://portal.spray.com/en-us" + prod["product"]["url"]
-                if prodUrl == "https://portal.spray.com/en-us/products/aab707-1-4-al-15":
-                    debug = True
+                prodUrl = "https://portal.spray.com/en-us/products/aa10000auh-03" 
                 iprod += 1
                 print(f'Scraping Product {iprod}/{nprods}')
                 for _ in range(10):
@@ -223,11 +222,26 @@ def scrape_prods(outputs, settings):
                                                             value += f" @ {condition_value} {condition_unit}"
                                                         else:
                                                             value += f" @ {condition_value}"
+                                                    elif conditionDisplay["variation"] and display["variation"] == "Invariant":
+                                                        try:
+                                                            condition_value = conditionDisplay["value"]["en"]
+                                                        except:
+                                                            condition_value = conditionDisplay["value"]
+                                                        condition_unit = conditionDisplay.get("unitSymbol", "")
+                                                        if condition_unit:
+                                                            value += f" @ {condition_value} {condition_unit}"
+                                                        else:
+                                                            value += f" @ {condition_value}"
+                                                        #key += conditionDisplay["variation"]
                                         except:
                                             pass
 
                                     # Assign the final value to prodDetails with the constructed key
-                                    prodDetails[key] = value
+                                    if key not in prodDetails:
+                                        prodDetails[key] = value
+                                    else:
+                                        prodDetails[key] += ', ' + value
+
 
                             else:
                                 # If no variations are found, simply store the default value
@@ -249,6 +263,21 @@ def scrape_prods(outputs, settings):
                 
                 # Updating keys format
                 prodDetails = {convert_key_format(k): v for k, v in prodDetails.items()}
+                if "Model" not in prodDetails:
+                    try:
+                        prodDetails["Model"] = re.findall(r'<button type="button" class="ms-Link root-476">(.*?)</button>', response.text)[0]
+                    except:
+                        pass
+                if "Drop Size D M Z" in prodDetails:
+                    try:
+                        prodDetails["Drop Size D M Z"] = re.findall(r'<div[^>]*id="tooltip113"[^>]*>(.*?)</div>', response.text)[0]
+                    except:
+                        pass
+                if "Maximum Pressure" in prodDetails:
+                    try:
+                        prodDetails["Maximum Pressure"] = re.findall(r'<div[^>]*id="tooltip143"[^>]*>(.*?)</div>', response.text)[0]
+                    except:
+                        pass
                 df = pd.concat([df, pd.DataFrame([prodDetails.copy()])], ignore_index=True)
                          
         if df.shape[0] > 0:
@@ -264,30 +293,42 @@ def scrape_prods(outputs, settings):
                 "Product Link": "Product URL",
                 "Image Link":"Product Image",
                 "Description":"General Description",
+                "Drop Size D M Z":"Drop Size (Sauter Mean Diameter)",
                 })
 
-            if "Estimated Ready to Ship" in df.columns:
-                df["Estimated Ready to Ship"] = df["Estimated Ready to Ship"].apply(convert_key_format)
-            if "Spray Pattern" in df.columns:
-                df["Spray Pattern"] = df["Spray Pattern"].apply(convert_key_format)
-            if "Material Composition" in df.columns:
-                df["Material Composition"] = df["Material Composition"].apply(lambda x:x.replace("_", " ") if isinstance(x, str) else x)
+            try:
+                if "Estimated Ready to Ship" in df.columns:
+                    df["Estimated Ready to Ship"] = df["Estimated Ready to Ship"].apply(convert_key_format)
+                if "Spray Pattern" in df.columns:
+                    df["Spray Pattern"] = df["Spray Pattern"].apply(convert_key_format)
+                if "Material Composition" in df.columns:
+                    df["Material Composition"] = df["Material Composition"].apply(lambda x:x.replace("_", " ") if isinstance(x, str) else x)
+
+                # update range columns format
+                for col in df.columns:
+                    if "Range" in col and "Description" not in col:
+                        df[col] = df[col].apply(convert_range_string)
+            except Exception as err:
+                print(f"Error: Failed to process the df columns")
+                print(err)
+
             # Reorder the DataFrame
-            orderedCols = ["Product Name", "Product URL", "Product Code", "Product Image", "Estimated Ready to Ship", "Product Bulletin Link", "Catalog Detail Link", "Interactive Model Link", "General Description", "Capacity Size", "Capacity Size Description", "Inlet Connection Gender", "Inlet Connection Gender Description", "Inlet Connection Size", "Inlet Connection Size Description", "Inlet Connection Type", "Inlet Connection Type Description", "Inlet Connection Thread Type", "Inlet Connection Thread Type Description", "Material Composition", "Material Composition Description", "Model", "Product Type", "Operating Pressure Range Metric", "Operating Pressure Range Us", "Brand", "Brand Description", "Impact Group", "A Dimension Metric", "A Dimension Us", "B Dimension Metric", "B Dimension Us", "Liquid Flow Rate Range Metric", "Liquid Flow Rate Range Us", "Liquid Flow Rate Range Description", "Maximum Free Passage", "Maximum Recommended Tank Diameter Metric", "Maximum Recommended Tank Diameter Us", "Maximum Recommended Tank Diameter Description", "Maximum Temperature Metric", "Maximum Temperature Us", "Minimum Tank Opening Metric", "Minimum Tank Opening Us", "Operating Principle", "Recommended Strainer Mesh", "Spray Coverage", "Spray Coverage Description", "Tank Mounting Options", "Tank Mounting Options Description", "Spray Pattern", "Spray Pattern Description", "Air Flow Rate Us", "Air Flow Rate Metric", "Price Type", "Audience", "Color", "Marketing Score", "Marketing Score Description", "Sales Score", "Sales Score Description", "Business Score", "Business Score Description"]
-            existingCols = [col for col in orderedCols if col in df.columns]
-            remainingCols = [col for col in df.columns if col not in existingCols]
-            newCols = existingCols + remainingCols          
-            df = df[newCols]
-            df = sort_discerption_columns(df, orderedCols)
-
-            # update range columns format
-            for col in df.columns:
-                if "Range" in col and "Description" not in col:
-                    df[col] = df[col].apply(convert_range_string)
-
+            orderedCols = ["Product Name", "Product URL", "Product Code", "Product Image", "Estimated Ready to Ship", "Product Bulletin Link", "Catalog Detail Link", "Interactive Model Link", "General Description", "Air Cap Component", "Fluid Cap Component", "Capacity Size", "Capacity Size Description", "Inlet Connection Gender", "Inlet Connection Gender Description", "Inlet Connection Size", "Inlet Connection Size Description", "Inlet Connection Type", "Inlet Connection Type Description", "Nozzle Count", "Inlet Connection Thread Type", "Inlet Connection Thread Type Description", "Material Composition", "Material Composition Description", "Model", "Setup Mix Type", "Setup Type", "Product Type", "Spray Angle Range", "Spray Angle", "Air Cap Part Number", "Fluid Cap Part Number", "Compatible Needle Size", "Operating Pressure Range Metric", "Operating Pressure Range Us", "Brand", "Brand Description", "Impact Group", "A Dimension Metric", "A Dimension Us", "B Dimension Metric", "B Dimension Us", "Liquid Flow Rate Range Metric", "Liquid Flow Rate Range Us", "Liquid Flow Rate Range Description", "Maximum Free Passage", "Maximum Recommended Tank Diameter Metric", "Maximum Recommended Tank Diameter Us", "Maximum Recommended Tank Diameter Description", "Maximum Temperature Metric", "Maximum Temperature Us", "Minimum Tank Opening Metric", "Minimum Tank Opening Us", "Operating Principle", "Recommended Strainer Mesh", "Spray Coverage", "Spray Coverage Description", "Tank Mounting Options", "Tank Mounting Options Description", "Spray Pattern", "Spray Pattern Description", "Air Flow Rate Us", "Air Flow Rate Metric", "Price Type", "Audience", "Color", "Marketing Score", "Marketing Score Description", "Sales Score", "Sales Score Description", "Business Score", "Business Score Description"]
+            try:
+                existingCols = [col for col in orderedCols if col in df.columns]
+                remainingCols = [col for col in df.columns if col not in existingCols]
+                newCols = existingCols + remainingCols          
+                df = df[newCols]
+                df = sort_description_columns(df, orderedCols)
+            except Exception as err:
+                print(f"Error: Failed to reorder the df columns")
+                print(err)
+                
             df.to_csv(path, index=False, encoding="windows-1252")      
 
 def convert_range_string(input_str):
+    if pd.isna(input_str):
+        return input_str
     # Extract the dictionary part and the unit using regex
     match = re.match(r"\{(.+?)\}\s*(\S+)", input_str)
     if not match:
@@ -307,24 +348,34 @@ def convert_range_string(input_str):
         return input_str  # Return as-is if there's an error in parsing
 
 # Sort function
-def sort_discerption_columns(df, orderedCols):
+def sort_description_columns(df, orderedCols):
     columns = df.columns.tolist()
     reordered_columns = []
     descreption_columns = {}
-    
-    # Separate base and "Discerption" columns
+    for col in columns:
+        if col.endswith(" Description"):
+            base_name = col.replace(" Description", "")
+            descreption_columns[base_name] = col  # Map base name to its description column
+
+    # Separate base and "Description" columns
     for col in columns:
         if col in orderedCols:
             reordered_columns.append(col)
-        elif col.endswith(" Discerption"):
-            base_name = col.replace(" Discerption", "")
-            descreption_columns[base_name] = col  # Map base name to its description column
+        elif col.endswith(" Description"):
+            continue
         else:
             # Add the base column to reordered list
             reordered_columns.append(col)
-            # If there is a corresponding "Discerption" column, add it right after the base
-            if col.replace(" Us", "") in descreption_columns:
-                reordered_columns.append(descreption_columns[col])
+
+            # Check if there are any description columns matching this base column with optional " Us" or " Metric" suffix
+            base_name = col.replace(" Us", "").replace(" Metric", "")
+            if base_name in descreption_columns:
+                # Ensure that the description is added only once, after the last occurrence of the base column variants
+                if descreption_columns[base_name] not in reordered_columns:
+                    reordered_columns.append(descreption_columns[base_name])
+                else:
+                    reordered_columns.remove(descreption_columns[base_name])
+                    reordered_columns.append(descreption_columns[base_name])
 
     # Return the DataFrame with reordered columns
     return df[reordered_columns]
