@@ -106,7 +106,7 @@ def scrape_prods(outputs, settings):
             prods = searchData["props"]["pageProps"]["finderData"]["facetedSearchProductViewModels"]
             for prod in prods:
                 prodUrl = "https://portal.spray.com/en-us" + prod["product"]["url"]
-                prodUrl = "https://portal.spray.com/en-us/products/aa10000auh-03" 
+                #prodUrl = "https://portal.spray.com/en-us/products/aa10000auh-03" 
                 iprod += 1
                 print(f'Scraping Product {iprod}/{nprods}')
                 for _ in range(10):
@@ -222,7 +222,7 @@ def scrape_prods(outputs, settings):
                                                             value += f" @ {condition_value} {condition_unit}"
                                                         else:
                                                             value += f" @ {condition_value}"
-                                                    elif conditionDisplay["variation"] and display["variation"] == "Invariant":
+                                                    elif conditionDisplay["variation"] != display["variation"] and (display["variation"] == "Invariant" or conditionDisplay["variation"] == "Invariant"):
                                                         try:
                                                             condition_value = conditionDisplay["value"]["en"]
                                                         except:
@@ -232,7 +232,6 @@ def scrape_prods(outputs, settings):
                                                             value += f" @ {condition_value} {condition_unit}"
                                                         else:
                                                             value += f" @ {condition_value}"
-                                                        #key += conditionDisplay["variation"]
                                         except:
                                             pass
 
@@ -268,16 +267,7 @@ def scrape_prods(outputs, settings):
                         prodDetails["Model"] = re.findall(r'<button type="button" class="ms-Link root-476">(.*?)</button>', response.text)[0]
                     except:
                         pass
-                if "Drop Size D M Z" in prodDetails:
-                    try:
-                        prodDetails["Drop Size D M Z"] = re.findall(r'<div[^>]*id="tooltip113"[^>]*>(.*?)</div>', response.text)[0]
-                    except:
-                        pass
-                if "Maximum Pressure" in prodDetails:
-                    try:
-                        prodDetails["Maximum Pressure"] = re.findall(r'<div[^>]*id="tooltip143"[^>]*>(.*?)</div>', response.text)[0]
-                    except:
-                        pass
+
                 df = pd.concat([df, pd.DataFrame([prodDetails.copy()])], ignore_index=True)
                          
         if df.shape[0] > 0:
@@ -313,7 +303,7 @@ def scrape_prods(outputs, settings):
                 print(err)
 
             # Reorder the DataFrame
-            orderedCols = ["Product Name", "Product URL", "Product Code", "Product Image", "Estimated Ready to Ship", "Product Bulletin Link", "Catalog Detail Link", "Interactive Model Link", "General Description", "Air Cap Component", "Fluid Cap Component", "Capacity Size", "Capacity Size Description", "Inlet Connection Gender", "Inlet Connection Gender Description", "Inlet Connection Size", "Inlet Connection Size Description", "Inlet Connection Type", "Inlet Connection Type Description", "Nozzle Count", "Inlet Connection Thread Type", "Inlet Connection Thread Type Description", "Material Composition", "Material Composition Description", "Model", "Setup Mix Type", "Setup Type", "Product Type", "Spray Angle Range", "Spray Angle", "Air Cap Part Number", "Fluid Cap Part Number", "Compatible Needle Size", "Operating Pressure Range Metric", "Operating Pressure Range Us", "Brand", "Brand Description", "Impact Group", "A Dimension Metric", "A Dimension Us", "B Dimension Metric", "B Dimension Us", "Liquid Flow Rate Range Metric", "Liquid Flow Rate Range Us", "Liquid Flow Rate Range Description", "Maximum Free Passage", "Maximum Recommended Tank Diameter Metric", "Maximum Recommended Tank Diameter Us", "Maximum Recommended Tank Diameter Description", "Maximum Temperature Metric", "Maximum Temperature Us", "Minimum Tank Opening Metric", "Minimum Tank Opening Us", "Operating Principle", "Recommended Strainer Mesh", "Spray Coverage", "Spray Coverage Description", "Tank Mounting Options", "Tank Mounting Options Description", "Spray Pattern", "Spray Pattern Description", "Air Flow Rate Us", "Air Flow Rate Metric", "Price Type", "Audience", "Color", "Marketing Score", "Marketing Score Description", "Sales Score", "Sales Score Description", "Business Score", "Business Score Description"]
+            orderedCols = ["Product Name", "Product URL", "Product Code", "Product Image", "Estimated Ready to Ship", "Product Bulletin Link", "Catalog Detail Link", "Interactive Model Link", "General Description", "Air Cap Component", "Fluid Cap Component", "Capacity Size", "Capacity Size Description", "Inlet Connection Gender", "Inlet Connection Gender Description", "Inlet Connection Size", "Inlet Connection Size Description", "Inlet Connection Type", "Inlet Connection Type Description", "Cap Hex Size", "Height", "Length", "Length Description", "Width", "Maximum Air Pressure", "Maximum Flow", "Maximum Operating Speed", "Maximum Pressure", "Spray Tips", "Voltage", "Nozzle Count", "Inlet Connection Thread Type", "Inlet Connection Thread Type Description", "Material Composition", "Material Composition Description", "Model", "Design Feature", "Design Feature Description", "Setup Mix Type", "Setup Type", "Product Type", "Spray Angle Range", "Spray Angle", "Air Cap Part Number", "Fluid Cap Part Number", "Compatible Needle Size", "Operating Pressure Range Metric", "Operating Pressure Range Us", "Brand", "Brand Description", "Impact Group", "A Dimension Metric", "A Dimension Us", "B Dimension Metric", "B Dimension Us", "Liquid Flow Rate Range Metric", "Liquid Flow Rate Range Us", "Liquid Flow Rate Range Description", "Maximum Free Passage", "Maximum Recommended Tank Diameter Metric", "Maximum Recommended Tank Diameter Us", "Maximum Recommended Tank Diameter Description", "Maximum Temperature Metric", "Maximum Temperature Us", "Mounting Points", "Minimum Tank Opening Metric", "Minimum Tank Opening Us", "Operating Principle", "Recommended Strainer Mesh", "Spray Coverage", "Spray Coverage Description", "Tank Mounting Options", "Tank Mounting Options Description", "Spray Pattern", "Spray Pattern Description", "Air Flow Rate Us", "Air Flow Rate Metric", "Price Type", "Audience", "Color", "Marketing Score", "Marketing Score Description", "Sales Score", "Sales Score Description", "Business Score", "Business Score Description"]
             try:
                 existingCols = [col for col in orderedCols if col in df.columns]
                 remainingCols = [col for col in df.columns if col not in existingCols]
