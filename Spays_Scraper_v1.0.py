@@ -106,7 +106,7 @@ def scrape_prods(outputs, settings):
             prods = searchData["props"]["pageProps"]["finderData"]["facetedSearchProductViewModels"]
             for prod in prods:
                 prodUrl = "https://portal.spray.com/en-us" + prod["product"]["url"]
-                #prodUrl = "https://portal.spray.com/en-us/products/aa10000auh-03" 
+                #prodUrl = "https://portal.spray.com/en-us/products/tpu11001-ss" 
                 iprod += 1
                 print(f'Scraping Product {iprod}/{nprods}')
                 for _ in range(10):
@@ -162,11 +162,15 @@ def scrape_prods(outputs, settings):
                 try:
                     n = 1
                     for resource in  prodData["product"]["resources"]:
-                        if resource["type"] not in prodDetails:
-                            prodDetails[resource["type"] + 'Link'] = resource["url"]
+                        if "variation" in resource and resource["variation"] != "Invariant":
+                            name = resource["type"] + resource["variation"]
+                        else:
+                            name = resource["type"]
+                        if name + 'Link' not in prodDetails:
+                            prodDetails[name + 'Link'] = resource["url"]
                         else:
                             n += 1
-                            prodDetails[resource["type"] + str(n) + "Link"] = resource["url"]
+                            prodDetails[name + str(n) + "Link"] = resource["url"]
                 except:
                     pass
 
