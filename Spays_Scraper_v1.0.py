@@ -34,7 +34,6 @@ def get_inputs():
 
         for ind in df.index:
             settings[df.iloc[ind, 0].lower().replace(' ', '-')] = df.iloc[ind, 1].lower()
-
     except Exception as err:
         print('Error: Failed to process the settings sheet')
         print(err)
@@ -65,214 +64,232 @@ def initialize_outputs(settings):
     return outputs
 
 def scrape_prods(outputs, settings):
+    industries = {
+        "https://portal.spray.com/en-us/categories/food-and-beverage?all=true":"Food & Beverage",
+        "https://portal.spray.com/en-us/categories/pulp-paper-and-tissue?all=true":"Pulp, Paper & Tissue",
+        "https://portal.spray.com/en-us/categories/steel-and-metals?all=true":"Steel & Metals",
+        "https://portal.spray.com/en-us/categories/car-wash?all=true":"Car Wash",
+    }
     for category, status in settings.items():
         if status != 'yes': continue
         name = category.replace("-", ' ').title()
         print(f'Scraping Category: {name}')
         print('-'*75)
         df = pd.DataFrame()
-        url = f"https://portal.spray.com/en-us/categories/{category}?all=true"
-        for _ in range(10):
-            try:
-                response = requests.get(url)
-                time.sleep(0.5)
-                if response.status_code == 200:
-                    break
-            except:
-                print(f'Failed to load the category page: {url}')
-                print(traceback.format_exc())
-                time.sleep(10)
+        if category != "industries":
+            urls = [f"https://portal.spray.com/en-us/categories/{category}?all=true"]
+        else:
+            urls = ["https://portal.spray.com/en-us/categories/food-and-beverage?all=true", "https://portal.spray.com/en-us/categories/pulp-paper-and-tissue?all=true", "https://portal.spray.com/en-us/categories/steel-and-metals?all=true", "https://portal.spray.com/en-us/categories/car-wash?all=true"]
 
-        nprods = int(re.findall(r'Found\s([\d,]+)\sproducts', response.text)[0].replace(',', ''))
-        #nprods = 100
-        print(f"Number of products: {nprods}")
-        npages = math.ceil(nprods/10)
-        iprod = 0
-        for page in range(1, npages+1):
-            pageUrl = url + f"&page={page}"
+        for url in urls:
             for _ in range(10):
                 try:
-                    response = requests.get(pageUrl)
+                    response = requests.get(url)
                     time.sleep(0.5)
                     if response.status_code == 200:
-                        searchData = json.loads(re.findall(
-                        '<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', response.text)[0])
                         break
                 except:
-                    print(f'Failed to load the search page: {pageUrl}')
+                    print(f'Failed to load the category page: {url}')
                     print(traceback.format_exc())
                     time.sleep(10)
-        
-            prods = searchData["props"]["pageProps"]["finderData"]["facetedSearchProductViewModels"]
-            for prod in prods:
-                prodUrl = "https://portal.spray.com/en-us" + prod["product"]["url"]
-                #prodUrl = "https://portal.spray.com/en-us/products/tpu11001-ss" 
-                iprod += 1
-                print(f'Scraping Product {iprod}/{nprods}')
+
+            nprods = int(re.findall(r'Found\s([\d,]+)\sproducts', response.text)[0].replace(',', ''))
+
+            if category == "industries":
+                print(f"Industry: {industries[url]}")
+
+            print(f"Number of products: {nprods}")
+            npages = math.ceil(nprods/10)
+            iprod = 0
+            for page in range(1, npages+1):
+                pageUrl = url + f"&page={page}"
                 for _ in range(10):
                     try:
-                        response = requests.get(prodUrl)
+                        response = requests.get(pageUrl)
                         time.sleep(0.5)
                         if response.status_code == 200:
-                            prodData = json.loads(re.findall(
+                            searchData = json.loads(re.findall(
                             '<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', response.text)[0])
                             break
                     except:
-                        print(f'Failed to load the product page: {prodUrl}')
+                        print(f'Failed to load the search page: {pageUrl}')
                         print(traceback.format_exc())
                         time.sleep(10)
-
-                prodData = prodData["props"]["pageProps"]
-                prodDetails = {}
-                try:
-                    prodDetails["ProductName"] = prodData["product"]["name"]["en"] + ', ' + prodData["product"]["number"]
-                except:
-                    pass
-
-                try:
-                    prodDetails["ProductLink"] = prodUrl
-                except:
-                    pass
-
-                try:
-                    prodDetails["ProductId"] = prodData["product"]["id"]
-                except:
-                    pass
-
-                try:
-                    prodDetails["ModelId"] = prodData["product"]["modelId"]
-                except:
-                    pass
-
-                try:
-                    prodDetails["ProductCode"] = prodData["product"]["number"]
-                except:
-                    pass
-
-                try:
-                    prodDetails["Audience"] = prodData["product"]["audience"]
-                except:
-                    pass
-
-                try:
-                    prodDetails["Description"] = prodData["product"]["description"]["en"].replace("*", "")
-                except:
-                    pass
-
-                try:
-                    n = 1
-                    for resource in  prodData["product"]["resources"]:
-                        if "variation" in resource and resource["variation"] != "Invariant":
-                            name = resource["type"] + resource["variation"]
-                        else:
-                            name = resource["type"]
-                        if name + 'Link' not in prodDetails:
-                            prodDetails[name + 'Link'] = resource["url"]
-                        else:
-                            n += 1
-                            prodDetails[name + str(n) + "Link"] = resource["url"]
-                except:
-                    pass
-
-                try:
-                    for option in  prodData["product"]["options"]:
-                        optionName = option["typeCode"]
-                        variants = option["variants"]
-                        for variant in variants:
-                            if variant["productNumber"] == prodDetails["ProductCode"]:
-                                prodDetails[optionName] = variant["displays"][0]["value"]["en"]
-                                break
-                except:
-                    pass
-
-                try:
-                    for attr in prodData["product"]["attributes"]:
+            
+                prods = searchData["props"]["pageProps"]["finderData"]["facetedSearchProductViewModels"]
+                for prod in prods:
+                    prodUrl = "https://portal.spray.com/en-us" + prod["product"]["url"]
+                    #prodUrl = "https://portal.spray.com/en-us/products/tpu11001-ss" 
+                    iprod += 1
+                    print(f'Scraping Product {iprod}/{nprods}')
+                    for _ in range(10):
                         try:
-                            # Initialize the base value without any suffix
-                            base_key = attr["typeCode"]
-                            # Loop over each variation within the "displays" list if it exists
-                            if "displays" in attr and attr["displays"]:
-                                for display in attr["displays"]:
-                                    # Determine suffix based on the "variation" key
-                                    if "variation" in display and display["variation"] != "Invariant":
-                                        suffix = display["variation"]
-                                    else:
-                                        suffix = ""
-
-                                    # Construct the full key with suffix and retrieve the value
-                                    key = base_key + suffix
-                                    try:
-                                        value = display["value"]["en"]
-                                    except:
-                                        value = display["value"]
-
-                                    # Check for a unit symbol and add it to the value if it exists
-                                    if "unitSymbol" in display and display["unitSymbol"]:
-                                        value = f"{value} {display['unitSymbol']}"
-
-                                    # Check for conditions and append if they exist
-                                    if "conditions" in attr and attr["conditions"]:
-                                        try:
-                                            condition = attr["conditions"][0]
-                                            if "displays" in condition and condition["displays"]:
-                                                for conditionDisplay in condition["displays"]:
-                                                    if conditionDisplay["variation"] == display["variation"]:
-                                                        try:
-                                                            condition_value = conditionDisplay["value"]["en"]
-                                                        except:
-                                                            condition_value = conditionDisplay["value"]
-                                                        condition_unit = conditionDisplay.get("unitSymbol", "")
-                                                        if condition_unit:
-                                                            value += f" @ {condition_value} {condition_unit}"
-                                                        else:
-                                                            value += f" @ {condition_value}"
-                                                    elif conditionDisplay["variation"] != display["variation"] and (display["variation"] == "Invariant" or conditionDisplay["variation"] == "Invariant"):
-                                                        try:
-                                                            condition_value = conditionDisplay["value"]["en"]
-                                                        except:
-                                                            condition_value = conditionDisplay["value"]
-                                                        condition_unit = conditionDisplay.get("unitSymbol", "")
-                                                        if condition_unit:
-                                                            value += f" @ {condition_value} {condition_unit}"
-                                                        else:
-                                                            value += f" @ {condition_value}"
-                                        except:
-                                            pass
-
-                                    # Assign the final value to prodDetails with the constructed key
-                                    if key not in prodDetails:
-                                        prodDetails[key] = value
-                                    elif key in prodDetails and prodDetails[key] != value:
-                                        prodDetails[key] += ', ' + value
-
-
-                            else:
-                                # If no variations are found, simply store the default value
-                                prodDetails[base_key] = attr["value"]
-                                if "unitSymbol" in attr:
-                                    prodDetails[base_key] += f" {attr['unitSymbol']}"
+                            response = requests.get(prodUrl)
+                            time.sleep(0.5)
+                            if response.status_code == 200:
+                                prodData = json.loads(re.findall(
+                                '<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', response.text)[0])
+                                break
                         except:
-                            pass
-                except:
-                    pass
+                            print(f'Failed to load the product page: {prodUrl}')
+                            print(traceback.format_exc())
+                            time.sleep(10)
 
-                try:
-                    for type in  prodData["attributeTypes"]:
-                        if type["description"]:
-                            prodDetails[type["code"] + "Description"] = type["description"]["en"]
+                    prodData = prodData["props"]["pageProps"]
+                    prodDetails = {}
 
-                except:
-                    pass
-                
-                # Updating keys format
-                prodDetails = {convert_key_format(k): v for k, v in prodDetails.items()}
-                if "Model" not in prodDetails:
+                    if category == "industries":
+                        prodDetails["Industry"] = industries[url]
+
                     try:
-                        prodDetails["Model"] = re.findall(r'<button type="button" class="ms-Link root-\d+">(.*?)</button>', response.text)[0]
+                        prodDetails["ProductName"] = prodData["product"]["name"]["en"] + ', ' + prodData["product"]["number"]
                     except:
                         pass
 
-                df = pd.concat([df, pd.DataFrame([prodDetails.copy()])], ignore_index=True)
+                    try:
+                        prodDetails["ProductLink"] = prodUrl
+                    except:
+                        pass
+
+                    try:
+                        prodDetails["ProductId"] = prodData["product"]["id"]
+                    except:
+                        pass
+
+                    try:
+                        prodDetails["ModelId"] = prodData["product"]["modelId"]
+                    except:
+                        pass
+
+                    try:
+                        prodDetails["ProductCode"] = prodData["product"]["number"]
+                    except:
+                        pass
+
+                    try:
+                        prodDetails["Audience"] = prodData["product"]["audience"]
+                    except:
+                        pass
+
+                    try:
+                        prodDetails["Description"] = prodData["product"]["description"]["en"].replace("*", "")
+                    except:
+                        pass
+
+                    try:
+                        n = 1
+                        for resource in  prodData["product"]["resources"]:
+                            if "variation" in resource and resource["variation"] != "Invariant":
+                                name = resource["type"] + resource["variation"]
+                            else:
+                                name = resource["type"]
+                            if name + 'Link' not in prodDetails:
+                                prodDetails[name + 'Link'] = resource["url"]
+                            else:
+                                n += 1
+                                prodDetails[name + str(n) + "Link"] = resource["url"]
+                    except:
+                        pass
+
+                    try:
+                        for option in  prodData["product"]["options"]:
+                            optionName = option["typeCode"]
+                            variants = option["variants"]
+                            for variant in variants:
+                                if variant["productNumber"] == prodDetails["ProductCode"]:
+                                    prodDetails[optionName] = variant["displays"][0]["value"]["en"]
+                                    break
+                    except:
+                        pass
+
+                    try:
+                        for attr in prodData["product"]["attributes"]:
+                            try:
+                                # Initialize the base value without any suffix
+                                base_key = attr["typeCode"]
+                                # Loop over each variation within the "displays" list if it exists
+                                if "displays" in attr and attr["displays"]:
+                                    for display in attr["displays"]:
+                                        # Determine suffix based on the "variation" key
+                                        if "variation" in display and display["variation"] != "Invariant":
+                                            suffix = display["variation"]
+                                        else:
+                                            suffix = ""
+
+                                        # Construct the full key with suffix and retrieve the value
+                                        key = base_key + suffix
+                                        try:
+                                            value = display["value"]["en"]
+                                        except:
+                                            value = display["value"]
+
+                                        # Check for a unit symbol and add it to the value if it exists
+                                        if "unitSymbol" in display and display["unitSymbol"]:
+                                            value = f"{value} {display['unitSymbol']}"
+
+                                        # Check for conditions and append if they exist
+                                        if "conditions" in attr and attr["conditions"]:
+                                            try:
+                                                condition = attr["conditions"][0]
+                                                if "displays" in condition and condition["displays"]:
+                                                    for conditionDisplay in condition["displays"]:
+                                                        if conditionDisplay["variation"] == display["variation"]:
+                                                            try:
+                                                                condition_value = conditionDisplay["value"]["en"]
+                                                            except:
+                                                                condition_value = conditionDisplay["value"]
+                                                            condition_unit = conditionDisplay.get("unitSymbol", "")
+                                                            if condition_unit:
+                                                                value += f" @ {condition_value} {condition_unit}"
+                                                            else:
+                                                                value += f" @ {condition_value}"
+                                                        elif conditionDisplay["variation"] != display["variation"] and (display["variation"] == "Invariant" or conditionDisplay["variation"] == "Invariant"):
+                                                            try:
+                                                                condition_value = conditionDisplay["value"]["en"]
+                                                            except:
+                                                                condition_value = conditionDisplay["value"]
+                                                            condition_unit = conditionDisplay.get("unitSymbol", "")
+                                                            if condition_unit:
+                                                                value += f" @ {condition_value} {condition_unit}"
+                                                            else:
+                                                                value += f" @ {condition_value}"
+                                            except:
+                                                pass
+
+                                        # Assign the final value to prodDetails with the constructed key
+                                        if key not in prodDetails:
+                                            prodDetails[key] = value
+                                        elif key in prodDetails and prodDetails[key] != value:
+                                            prodDetails[key] += ', ' + value
+
+
+                                else:
+                                    # If no variations are found, simply store the default value
+                                    prodDetails[base_key] = attr["value"]
+                                    if "unitSymbol" in attr:
+                                        prodDetails[base_key] += f" {attr['unitSymbol']}"
+                            except:
+                                pass
+                    except:
+                        pass
+
+                    try:
+                        for type in  prodData["attributeTypes"]:
+                            if type["description"]:
+                                prodDetails[type["code"] + "Description"] = type["description"]["en"]
+
+                    except:
+                        pass
+                    
+                    # Updating keys format
+                    prodDetails = {convert_key_format(k): v for k, v in prodDetails.items()}
+                    if "Model" not in prodDetails:
+                        try:
+                            prodDetails["Model"] = re.findall(r'<button type="button" class="ms-Link root-\d+">(.*?)</button>', response.text)[0]
+                        except:
+                            pass
+
+                    df = pd.concat([df, pd.DataFrame([prodDetails.copy()])], ignore_index=True)
                          
         if df.shape[0] > 0:
             path = outputs[category]
@@ -307,7 +324,7 @@ def scrape_prods(outputs, settings):
                 print(err)
 
             # Reorder the DataFrame
-            orderedCols = ["Product Name", "Product URL", "Product Code", "Product Image", "Estimated Ready to Ship", "Product Bulletin Link", "Catalog Detail Link", "Interactive Model Link", "General Description", "Body Type", "Air Cap Component", "Fluid Cap Component", "Capacity Size", "Capacity Size Description", "Inlet Connection Gender", "Inlet Connection Gender Description", "Outlet Connection Gender", "Inlet Connection Size", "Inlet Connection Size Description", "Outlet Connection Size", "Inlet Connection Type", "Inlet Connection Type Description", "Outlet Connection Type", "Outlet Connection Type Description", "Liquid Flow Rate at Rated Pressure", "Liquid Flow Rate at Rated Pressure Description", "Cap Hex Size", "Height Us", "Height Metric", "Length Us", "Length Metric", "Length Description", "Width Us", "Width Metric", "Maximum Air Pressure", "Maximum Flow", "Maximum Operating Speed", "Maximum Pressure", "Spray Tips", "Voltage", "Nozzle Count", "Inlet Connection Thread Type", "Inlet Connection Thread Type Description", "Outlet Connection Thread Type", "Material Code", "Material Composition", "Material Composition Description", "Model", "Spray Angle at Rated Pressure", "Spray Angle at Rated Pressure Description", "Tip Type", "Tip Type Description", "Design Feature", "Design Feature Description", "Setup Mix Type", "Setup Type", "Product Type", "Relative Drop Size Group", "Relative Drop Size Group Description", "Spray Angle Range", "Spray Angle Range Description", "Spray Angle Us", "Spray Angle Metric", "Spray Angle Description", "Air Cap Part Number", "Fluid Cap Part Number", "Compatible Needle Size", "Operating Pressure Range Metric", "Operating Pressure Range Us", "Brand", "Brand Description", "Spray Angle Catalog Code", "Spray Angle Catalog Code Description", "Approximate Free Passage Diameter Us", "Approximate Free Passage Diameter Metric", "Equivalent Orifice Diameter Us", "Equivalent Orifice Diameter Metric", "Equivalent Orifice Diameter Description", "Color", "Body Sales Part Number", "Tip Sales Part Number", "Body Hex Size", "Impact Group", "A Dimension Metric", "A Dimension Us", "B Dimension Metric", "B Dimension Us", "C Dimension Metric", "C Dimension Us", "D Dimension Metric", "D Dimension Us", "E Dimension Metric", "E Dimension Us", "Liquid Flow Rate Range Metric", "Liquid Flow Rate Range Us", "Liquid Flow Rate Range Description", "Liquid Pressure Range Us", "Liquid Pressure Range Metric", "Liquid Pressure Range Description", "Rated Pressure Us", "Rated Pressure Metric", "Rated Pressure Description", "Relative Drop Size Range", "Relative Drop Size Range Description", "Maximum Free Passage", "Maximum Recommended Tank Diameter Metric", "Maximum Recommended Tank Diameter Us", "Maximum Recommended Tank Diameter Description", "Maximum Temperature Metric", "Maximum Temperature Us", "Mounting Points", "Minimum Tank Opening Metric", "Minimum Tank Opening Us", "Operating Principle", "Recommended Strainer Mesh", "Spray Coverage", "Spray Coverage Description", "Tank Mounting Options", "Tank Mounting Options Description", "Spray Pattern", "Spray Pattern Description", "Weight Us", "Weight Metric", "Air Flow Rate Us", "Air Flow Rate Metric", "Price Type", "Audience", "Marketing Score", "Marketing Score Description", "Sales Score", "Sales Score Description", "Business Score", "Business Score Description"]
+            orderedCols = ["Product Name", "Product URL", "Product Code", "Product Image", "Estimated Ready to Ship", "Industry", "Product Bulletin Link", "Catalog Detail Link", "Interactive Model Link", "Video Link", "Flow Image Link", "Case Study Link", "Case Study2 Link", "Case Study3 Link", "Case Study4 Link", "Data Sheet Link", "General Description", "Body Type", "Air Cap Component", "Fluid Cap Component", "Capacity Size", "Capacity Size Description", "Inlet Connection Gender", "Inlet Connection Gender Description", "Outlet Connection Gender", "Inlet Connection Size", "Inlet Connection Size Description", "Outlet Connection Size", "Inlet Connection Type", "Inlet Connection Type Description", "Outlet Connection Type", "Outlet Connection Type Description", "Liquid Flow Rate at Rated Pressure", "Liquid Flow Rate at Rated Pressure Description", "Cap Hex Size", "Height Us", "Height Metric", "Length Us", "Length Metric", "Length Description", "Width Us", "Width Metric", "Maximum Air Pressure", "Maximum Flow", "Maximum Operating Speed", "Maximum Pressure", "Spray Tips", "Voltage", "Nozzle Count", "Inlet Connection Thread Type", "Inlet Connection Thread Type Description", "Outlet Connection Thread Type", "Material Code", "Material Composition", "Material Composition Description", "Model", "Spray Angle at Rated Pressure", "Spray Angle at Rated Pressure Description", "Tip Type", "Tip Type Description", "Design Feature", "Design Feature Description", "Setup Mix Type", "Setup Type", "Product Type", "Relative Drop Size Group", "Relative Drop Size Group Description", "Spray Angle Range", "Spray Angle Range Description", "Spray Angle Us", "Spray Angle Metric", "Spray Angle Description", "Air Cap Part Number", "Fluid Cap Part Number", "Compatible Needle Size", "Operating Pressure Range Metric", "Operating Pressure Range Us", "Brand", "Brand Description", "Spray Angle Catalog Code", "Spray Angle Catalog Code Description", "Approximate Free Passage Diameter Us", "Approximate Free Passage Diameter Metric", "Equivalent Orifice Diameter Us", "Equivalent Orifice Diameter Metric", "Equivalent Orifice Diameter Description", "Color", "Body Sales Part Number", "Tip Sales Part Number", "Body Hex Size", "Impact Group", "A Dimension Metric", "A Dimension Us", "B Dimension Metric", "B Dimension Us", "C Dimension Metric", "C Dimension Us", "D Dimension Metric", "D Dimension Us", "E Dimension Metric", "E Dimension Us", "Liquid Flow Rate Range Metric", "Liquid Flow Rate Range Us", "Liquid Flow Rate Range Description", "Liquid Pressure Range Us", "Liquid Pressure Range Metric", "Liquid Pressure Range Description", "Rated Pressure Us", "Rated Pressure Metric", "Rated Pressure Description", "Relative Drop Size Range", "Relative Drop Size Range Description", "Maximum Free Passage", "Maximum Recommended Tank Diameter Metric", "Maximum Recommended Tank Diameter Us", "Maximum Recommended Tank Diameter Description", "Maximum Temperature Metric", "Maximum Temperature Us", "Mounting Points", "Minimum Tank Opening Metric", "Minimum Tank Opening Us", "Operating Principle", "Recommended Strainer Mesh", "Spray Coverage", "Spray Coverage Description", "Tank Mounting Options", "Tank Mounting Options Description", "Spray Pattern", "Spray Pattern Description", "Weight Us", "Weight Metric", "Air Flow Rate Us", "Air Flow Rate Metric", "Price Type", "Audience", "Marketing Score", "Marketing Score Description", "Sales Score", "Sales Score Description", "Business Score", "Business Score Description"]
             try:
                 existingCols = [col for col in orderedCols if col in df.columns]
                 remainingCols = [col for col in df.columns if col not in existingCols]
