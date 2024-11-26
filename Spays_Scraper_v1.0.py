@@ -119,7 +119,7 @@ def scrape_prods(outputs, settings):
                 prods = searchData["props"]["pageProps"]["finderData"]["facetedSearchProductViewModels"]
                 for prod in prods:
                     prodUrl = "https://portal.spray.com/en-us" + prod["product"]["url"]
-                    #prodUrl = "https://portal.spray.com/en-us/products/tpu11001-ss" 
+                    #prodUrl = "https://portal.spray.com/en-us/products/63225e-1-2-40-3a" 
                     iprod += 1
                     print(f'Scraping Product {iprod}/{nprods}')
                     for _ in range(10):
@@ -177,7 +177,7 @@ def scrape_prods(outputs, settings):
                         pass
 
                     try:
-                        n = 1
+                        counter = {}
                         for resource in  prodData["product"]["resources"]:
                             if "variation" in resource and resource["variation"] != "Invariant":
                                 name = resource["type"] + resource["variation"]
@@ -186,8 +186,12 @@ def scrape_prods(outputs, settings):
                             if name + 'Link' not in prodDetails:
                                 prodDetails[name + 'Link'] = resource["url"]
                             else:
-                                n += 1
-                                prodDetails[name + str(n) + "Link"] = resource["url"]
+                                if name + 'Link' not in counter:
+                                    counter[name + 'Link'] = 2
+                                else:
+                                    counter[name + 'Link'] += 1
+
+                                prodDetails[name + str(counter[name + 'Link']) + "Link"] = resource["url"]
                     except:
                         pass
 
@@ -303,6 +307,14 @@ def scrape_prods(outputs, settings):
                 "Shipping Estimate": "Estimated Ready to Ship",
                 "Product Link": "Product URL",
                 "Image Link":"Product Image",
+                "Image 2 Link":"Product Image 2",
+                "Image 3 Link":"Product Image 3",
+                "Image 4 Link":"Product Image 4",
+                "Image 5 Link":"Product Image 5",
+                "Image 6 Link":"Product Image 6",
+                "Image 7 Link":"Product Image 7",
+                "Image 8 Link":"Product Image 8",
+                "Image 9 Link":"Product Image 9",
                 "Description":"General Description",
                 "Drop Size D M Z":"Drop Size (Sauter Mean Diameter)",
                 })
@@ -324,7 +336,7 @@ def scrape_prods(outputs, settings):
                 print(err)
 
             # Reorder the DataFrame
-            orderedCols = ["Product Name", "Product URL", "Product Code", "Product Image", "Estimated Ready to Ship", "Industry", "Product Bulletin Link", "Catalog Detail Link", "Interactive Model Link", "Video Link", "Flow Image Link", "Case Study Link", "Case Study2 Link", "Case Study3 Link", "Case Study4 Link", "Data Sheet Link", "General Description", "Body Type", "Air Cap Component", "Fluid Cap Component", "Capacity Size", "Capacity Size Description", "Inlet Connection Gender", "Inlet Connection Gender Description", "Outlet Connection Gender", "Inlet Connection Size", "Inlet Connection Size Description", "Outlet Connection Size", "Inlet Connection Type", "Inlet Connection Type Description", "Outlet Connection Type", "Outlet Connection Type Description", "Liquid Flow Rate at Rated Pressure", "Liquid Flow Rate at Rated Pressure Description", "Cap Hex Size", "Height Us", "Height Metric", "Length Us", "Length Metric", "Length Description", "Width Us", "Width Metric", "Maximum Air Pressure", "Maximum Flow", "Maximum Operating Speed", "Maximum Pressure", "Spray Tips", "Voltage", "Nozzle Count", "Inlet Connection Thread Type", "Inlet Connection Thread Type Description", "Outlet Connection Thread Type", "Material Code", "Material Composition", "Material Composition Description", "Model", "Spray Angle at Rated Pressure", "Spray Angle at Rated Pressure Description", "Tip Type", "Tip Type Description", "Design Feature", "Design Feature Description", "Setup Mix Type", "Setup Type", "Product Type", "Relative Drop Size Group", "Relative Drop Size Group Description", "Spray Angle Range", "Spray Angle Range Description", "Spray Angle Us", "Spray Angle Metric", "Spray Angle Description", "Air Cap Part Number", "Fluid Cap Part Number", "Compatible Needle Size", "Operating Pressure Range Metric", "Operating Pressure Range Us", "Brand", "Brand Description", "Spray Angle Catalog Code", "Spray Angle Catalog Code Description", "Approximate Free Passage Diameter Us", "Approximate Free Passage Diameter Metric", "Equivalent Orifice Diameter Us", "Equivalent Orifice Diameter Metric", "Equivalent Orifice Diameter Description", "Color", "Body Sales Part Number", "Tip Sales Part Number", "Body Hex Size", "Impact Group", "A Dimension Metric", "A Dimension Us", "B Dimension Metric", "B Dimension Us", "C Dimension Metric", "C Dimension Us", "D Dimension Metric", "D Dimension Us", "E Dimension Metric", "E Dimension Us", "Liquid Flow Rate Range Metric", "Liquid Flow Rate Range Us", "Liquid Flow Rate Range Description", "Liquid Pressure Range Us", "Liquid Pressure Range Metric", "Liquid Pressure Range Description", "Rated Pressure Us", "Rated Pressure Metric", "Rated Pressure Description", "Relative Drop Size Range", "Relative Drop Size Range Description", "Maximum Free Passage", "Maximum Recommended Tank Diameter Metric", "Maximum Recommended Tank Diameter Us", "Maximum Recommended Tank Diameter Description", "Maximum Temperature Metric", "Maximum Temperature Us", "Mounting Points", "Minimum Tank Opening Metric", "Minimum Tank Opening Us", "Operating Principle", "Recommended Strainer Mesh", "Spray Coverage", "Spray Coverage Description", "Tank Mounting Options", "Tank Mounting Options Description", "Spray Pattern", "Spray Pattern Description", "Weight Us", "Weight Metric", "Air Flow Rate Us", "Air Flow Rate Metric", "Price Type", "Audience", "Marketing Score", "Marketing Score Description", "Sales Score", "Sales Score Description", "Business Score", "Business Score Description"]
+            orderedCols = ["Product Name", "Product URL", "Product Code", "Product Image", "Product Image 2", "Product Image 3", "Product Image 4", "Product Image 5", "Product Image 6", "Product Image 7", "Product Image 8", "Product Image 9", "Estimated Ready to Ship", "Industry", "Product Bulletin Link", "Product Bulletin 2 Link", "Product Bulletin 3 Link", "Product Bulletin 4 Link", "Product Bulletin 5 Link", "Product Bulletin 6 Link", "Product Bulletin 7 Link", "Product Bulletin 8 Link", "Product Bulletin 9 Link", "Catalog Detail Link", "Catalog Detail Metric Link", "Catalog Detail Us Link", "Interactive Model Link", "Video Link", "Video 2 Link", "Video 3 Link", "Video 4 Link", "Video 5 Link", "Video 6 Link", "Video 7 Link", "Video 8 Link", "Video 9 Link", "Flow Image Link", "Flow Image 2 Link", "Flow Image 3 Link", "Flow Image 4 Link", "Flow Image 5 Link", "Flow Image 6 Link", "Flow Image 7 Link", "Flow Image 8 Link", "Flow Image 9 Link", "Case Study Link", "Case Study 2 Link", "Case Study 3 Link", "Case Study 4 Link", "Case Study 5 Link", "Case Study 6 Link", "Case Study 7 Link", "Case Study 8 Link", "Case Study 9 Link", "Data Sheet Link", "Data Sheet Metric Link", "Data Sheet Us Link", "General Description", "Body Type", "Air Cap Component", "Fluid Cap Component", "Capacity Size", "Capacity Size Description", "Inlet Connection Gender", "Inlet Connection Gender Description", "Outlet Connection Gender", "Inlet Connection Size", "Inlet Connection Size Description", "Outlet Connection Size", "Inlet Connection Type", "Inlet Connection Type Description", "Outlet Connection Type", "Outlet Connection Type Description", "Liquid Flow Rate at Rated Pressure", "Liquid Flow Rate at Rated Pressure Description", "Cap Hex Size", "Height Us", "Height Metric", "Length Us", "Length Metric", "Length Description", "Width Us", "Width Metric", "Maximum Air Pressure", "Maximum Flow", "Maximum Operating Speed", "Maximum Pressure", "Spray Tips", "Voltage", "Nozzle Count", "Inlet Connection Thread Type", "Inlet Connection Thread Type Description", "Outlet Connection Thread Type", "Material Code", "Material Composition", "Material Composition Description", "Model", "Spray Angle at Rated Pressure", "Spray Angle at Rated Pressure Description", "Tip Type", "Tip Type Description", "Design Feature", "Design Feature Description", "Setup Mix Type", "Setup Type", "Product Type", "Relative Drop Size Group", "Relative Drop Size Group Description", "Spray Angle Range", "Spray Angle Range Description", "Spray Angle Us", "Spray Angle Metric", "Spray Angle Description", "Air Cap Part Number", "Fluid Cap Part Number", "Compatible Needle Size", "Operating Pressure Range Metric", "Operating Pressure Range Us", "Brand", "Brand Description", "Spray Angle Catalog Code", "Spray Angle Catalog Code Description", "Approximate Free Passage Diameter Us", "Approximate Free Passage Diameter Metric", "Equivalent Orifice Diameter Us", "Equivalent Orifice Diameter Metric", "Equivalent Orifice Diameter Description", "Color", "Body Sales Part Number", "Tip Sales Part Number", "Body Hex Size", "Impact Group", "A Dimension Metric", "A Dimension Us", "B Dimension Metric", "B Dimension Us", "C Dimension Metric", "C Dimension Us", "D Dimension Metric", "D Dimension Us", "E Dimension Metric", "E Dimension Us", "Liquid Flow Rate Range Metric", "Liquid Flow Rate Range Us", "Liquid Flow Rate Range Description", "Liquid Pressure Range Us", "Liquid Pressure Range Metric", "Liquid Pressure Range Description", "Rated Pressure Us", "Rated Pressure Metric", "Rated Pressure Description", "Relative Drop Size Range", "Relative Drop Size Range Description", "Maximum Free Passage", "Maximum Recommended Tank Diameter Metric", "Maximum Recommended Tank Diameter Us", "Maximum Recommended Tank Diameter Description", "Maximum Temperature Metric", "Maximum Temperature Us", "Mounting Points", "Minimum Tank Opening Metric", "Minimum Tank Opening Us", "Operating Principle", "Recommended Strainer Mesh", "Spray Coverage", "Spray Coverage Description", "Tank Mounting Options", "Tank Mounting Options Description", "Spray Pattern", "Spray Pattern Description", "Weight Us", "Weight Metric", "Air Flow Rate Us", "Air Flow Rate Metric", "Price Type", "Audience", "Marketing Score", "Marketing Score Description", "Sales Score", "Sales Score Description", "Business Score", "Business Score Description"]
             try:
                 existingCols = [col for col in orderedCols if col in df.columns]
                 remainingCols = [col for col in df.columns if col not in existingCols]
