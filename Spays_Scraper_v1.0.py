@@ -4,15 +4,16 @@ import os
 from datetime import datetime
 import pandas as pd
 import sys
-import xlsxwriter
 import warnings
 import re
 import ast
 import sys
 import shutil
-import traceback
 import math
-import hrequests as requests
+import requests
+from openpyxl import Workbook
+from openpyxl.drawing.image import Image
+from io import BytesIO
 warnings.filterwarnings('ignore')
 
 def get_inputs():
@@ -54,7 +55,7 @@ def initialize_outputs(settings):
     outputs = {}
     for key, value in settings.items():
         if value == 'yes':
-            file = f'{key.title()}_{stamp}.csv'
+            file = f'{key.title()}_{stamp}.xlsx'
             output = os.path.join(path, file)
             # workbook = xlsxwriter.Workbook(output)
             # workbook.add_worksheet()
@@ -89,8 +90,8 @@ def scrape_prods(outputs, settings):
                     if response.status_code == 200:
                         break
                 except:
-                    print(f'Failed to load the category page: {url}')
-                    print(traceback.format_exc())
+                    print(f'Retrying to load URL: {url}')
+                    #print(traceback.format_exc())
                     time.sleep(10)
 
             nprods = int(re.findall(r'Found\s([\d,]+)\sproducts', response.text)[0].replace(',', ''))
@@ -100,6 +101,7 @@ def scrape_prods(outputs, settings):
 
             print(f"Number of products: {nprods}")
             npages = math.ceil(nprods/10)
+            #npages = 1 # For testing only
             iprod = 0
             for page in range(1, npages+1):
                 pageUrl = url + f"&page={page}"
@@ -112,8 +114,8 @@ def scrape_prods(outputs, settings):
                             '<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', response.text)[0])
                             break
                     except:
-                        print(f'Failed to load the search page: {pageUrl}')
-                        print(traceback.format_exc())
+                        print(f'Retrying to load URL: {pageUrl}')
+                        #print(traceback.format_exc())
                         time.sleep(10)
             
                 prods = searchData["props"]["pageProps"]["finderData"]["facetedSearchProductViewModels"]
@@ -131,8 +133,8 @@ def scrape_prods(outputs, settings):
                                 '<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', response.text)[0])
                                 break
                         except:
-                            print(f'Failed to load the product page: {prodUrl}')
-                            print(traceback.format_exc())
+                            print(f'Retrying to load URL: {prodUrl}')
+                            #print(traceback.format_exc())
                             time.sleep(10)
 
                     prodData = prodData["props"]["pageProps"]
@@ -336,7 +338,7 @@ def scrape_prods(outputs, settings):
                 print(err)
 
             # Reorder the DataFrame
-            orderedCols = ["Product Name", "Product URL", "Product Code", "Product Image", "Product Image 2", "Product Image 3", "Product Image 4", "Product Image 5", "Product Image 6", "Product Image 7", "Product Image 8", "Product Image 9", "Estimated Ready to Ship", "Industry", "Product Bulletin Link", "Product Bulletin 2 Link", "Product Bulletin 3 Link", "Product Bulletin 4 Link", "Product Bulletin 5 Link", "Product Bulletin 6 Link", "Product Bulletin 7 Link", "Product Bulletin 8 Link", "Product Bulletin 9 Link", "Catalog Detail Link", "Catalog Detail Metric Link", "Catalog Detail Us Link", "Interactive Model Link", "Video Link", "Video 2 Link", "Video 3 Link", "Video 4 Link", "Video 5 Link", "Video 6 Link", "Video 7 Link", "Video 8 Link", "Video 9 Link", "Flow Image Link", "Flow Image 2 Link", "Flow Image 3 Link", "Flow Image 4 Link", "Flow Image 5 Link", "Flow Image 6 Link", "Flow Image 7 Link", "Flow Image 8 Link", "Flow Image 9 Link", "Case Study Link", "Case Study 2 Link", "Case Study 3 Link", "Case Study 4 Link", "Case Study 5 Link", "Case Study 6 Link", "Case Study 7 Link", "Case Study 8 Link", "Case Study 9 Link", "Data Sheet Link", "Data Sheet Metric Link", "Data Sheet Us Link", "General Description", "Body Type", "Air Cap Component", "Fluid Cap Component", "Capacity Size", "Capacity Size Description", "Inlet Connection Gender", "Inlet Connection Gender Description", "Outlet Connection Gender", "Inlet Connection Size", "Inlet Connection Size Description", "Outlet Connection Size", "Inlet Connection Type", "Inlet Connection Type Description", "Outlet Connection Type", "Outlet Connection Type Description", "Liquid Flow Rate at Rated Pressure", "Liquid Flow Rate at Rated Pressure Description", "Cap Hex Size", "Height Us", "Height Metric", "Length Us", "Length Metric", "Length Description", "Width Us", "Width Metric", "Maximum Air Pressure", "Maximum Flow", "Maximum Operating Speed", "Maximum Pressure", "Spray Tips", "Voltage", "Nozzle Count", "Inlet Connection Thread Type", "Inlet Connection Thread Type Description", "Outlet Connection Thread Type", "Material Code", "Material Composition", "Material Composition Description", "Model", "Spray Angle at Rated Pressure", "Spray Angle at Rated Pressure Description", "Tip Type", "Tip Type Description", "Design Feature", "Design Feature Description", "Setup Mix Type", "Setup Type", "Product Type", "Relative Drop Size Group", "Relative Drop Size Group Description", "Spray Angle Range", "Spray Angle Range Description", "Spray Angle Us", "Spray Angle Metric", "Spray Angle Description", "Air Cap Part Number", "Fluid Cap Part Number", "Compatible Needle Size", "Operating Pressure Range Metric", "Operating Pressure Range Us", "Brand", "Brand Description", "Spray Angle Catalog Code", "Spray Angle Catalog Code Description", "Approximate Free Passage Diameter Us", "Approximate Free Passage Diameter Metric", "Equivalent Orifice Diameter Us", "Equivalent Orifice Diameter Metric", "Equivalent Orifice Diameter Description", "Color", "Body Sales Part Number", "Tip Sales Part Number", "Body Hex Size", "Impact Group", "A Dimension Metric", "A Dimension Us", "B Dimension Metric", "B Dimension Us", "C Dimension Metric", "C Dimension Us", "D Dimension Metric", "D Dimension Us", "E Dimension Metric", "E Dimension Us", "Liquid Flow Rate Range Metric", "Liquid Flow Rate Range Us", "Liquid Flow Rate Range Description", "Liquid Pressure Range Us", "Liquid Pressure Range Metric", "Liquid Pressure Range Description", "Rated Pressure Us", "Rated Pressure Metric", "Rated Pressure Description", "Relative Drop Size Range", "Relative Drop Size Range Description", "Maximum Free Passage", "Maximum Recommended Tank Diameter Metric", "Maximum Recommended Tank Diameter Us", "Maximum Recommended Tank Diameter Description", "Maximum Temperature Metric", "Maximum Temperature Us", "Mounting Points", "Minimum Tank Opening Metric", "Minimum Tank Opening Us", "Operating Principle", "Recommended Strainer Mesh", "Spray Coverage", "Spray Coverage Description", "Tank Mounting Options", "Tank Mounting Options Description", "Spray Pattern", "Spray Pattern Description", "Weight Us", "Weight Metric", "Air Flow Rate Us", "Air Flow Rate Metric", "Price Type", "Audience", "Marketing Score", "Marketing Score Description", "Sales Score", "Sales Score Description", "Business Score", "Business Score Description"]
+            orderedCols = ["Product Image","Product Name", "Product URL", "Product Code",  "Product Image 2", "Product Image 3", "Product Image 4", "Product Image 5", "Product Image 6", "Product Image 7", "Product Image 8", "Product Image 9", "Estimated Ready to Ship", "Industry", "Product Bulletin Link", "Product Bulletin 2 Link", "Product Bulletin 3 Link", "Product Bulletin 4 Link", "Product Bulletin 5 Link", "Product Bulletin 6 Link", "Product Bulletin 7 Link", "Product Bulletin 8 Link", "Product Bulletin 9 Link", "Catalog Detail Link", "Catalog Detail Metric Link", "Catalog Detail Us Link", "Interactive Model Link", "Video Link", "Video 2 Link", "Video 3 Link", "Video 4 Link", "Video 5 Link", "Video 6 Link", "Video 7 Link", "Video 8 Link", "Video 9 Link", "Flow Image Link", "Flow Image 2 Link", "Flow Image 3 Link", "Flow Image 4 Link", "Flow Image 5 Link", "Flow Image 6 Link", "Flow Image 7 Link", "Flow Image 8 Link", "Flow Image 9 Link", "Case Study Link", "Case Study 2 Link", "Case Study 3 Link", "Case Study 4 Link", "Case Study 5 Link", "Case Study 6 Link", "Case Study 7 Link", "Case Study 8 Link", "Case Study 9 Link", "Data Sheet Link", "Data Sheet Metric Link", "Data Sheet Us Link", "General Description", "Body Type", "Air Cap Component", "Fluid Cap Component", "Capacity Size", "Capacity Size Description", "Inlet Connection Gender", "Inlet Connection Gender Description", "Outlet Connection Gender", "Inlet Connection Size", "Inlet Connection Size Description", "Outlet Connection Size", "Inlet Connection Type", "Inlet Connection Type Description", "Outlet Connection Type", "Outlet Connection Type Description", "Liquid Flow Rate at Rated Pressure", "Liquid Flow Rate at Rated Pressure Description", "Cap Hex Size", "Height Us", "Height Metric", "Length Us", "Length Metric", "Length Description", "Width Us", "Width Metric", "Maximum Air Pressure", "Maximum Flow", "Maximum Operating Speed", "Maximum Pressure", "Spray Tips", "Voltage", "Nozzle Count", "Inlet Connection Thread Type", "Inlet Connection Thread Type Description", "Outlet Connection Thread Type", "Material Code", "Material Composition", "Material Composition Description", "Model", "Spray Angle at Rated Pressure", "Spray Angle at Rated Pressure Description", "Tip Type", "Tip Type Description", "Design Feature", "Design Feature Description", "Setup Mix Type", "Setup Type", "Product Type", "Relative Drop Size Group", "Relative Drop Size Group Description", "Spray Angle Range", "Spray Angle Range Description", "Spray Angle Us", "Spray Angle Metric", "Spray Angle Description", "Air Cap Part Number", "Fluid Cap Part Number", "Compatible Needle Size", "Operating Pressure Range Metric", "Operating Pressure Range Us", "Brand", "Brand Description", "Spray Angle Catalog Code", "Spray Angle Catalog Code Description", "Approximate Free Passage Diameter Us", "Approximate Free Passage Diameter Metric", "Equivalent Orifice Diameter Us", "Equivalent Orifice Diameter Metric", "Equivalent Orifice Diameter Description", "Color", "Body Sales Part Number", "Tip Sales Part Number", "Body Hex Size", "Impact Group", "A Dimension Metric", "A Dimension Us", "B Dimension Metric", "B Dimension Us", "C Dimension Metric", "C Dimension Us", "D Dimension Metric", "D Dimension Us", "E Dimension Metric", "E Dimension Us", "Liquid Flow Rate Range Metric", "Liquid Flow Rate Range Us", "Liquid Flow Rate Range Description", "Liquid Pressure Range Us", "Liquid Pressure Range Metric", "Liquid Pressure Range Description", "Rated Pressure Us", "Rated Pressure Metric", "Rated Pressure Description", "Relative Drop Size Range", "Relative Drop Size Range Description", "Maximum Free Passage", "Maximum Recommended Tank Diameter Metric", "Maximum Recommended Tank Diameter Us", "Maximum Recommended Tank Diameter Description", "Maximum Temperature Metric", "Maximum Temperature Us", "Mounting Points", "Minimum Tank Opening Metric", "Minimum Tank Opening Us", "Operating Principle", "Recommended Strainer Mesh", "Spray Coverage", "Spray Coverage Description", "Tank Mounting Options", "Tank Mounting Options Description", "Spray Pattern", "Spray Pattern Description", "Weight Us", "Weight Metric", "Air Flow Rate Us", "Air Flow Rate Metric", "Price Type", "Audience", "Marketing Score", "Marketing Score Description", "Sales Score", "Sales Score Description", "Business Score", "Business Score Description"]
             try:
                 existingCols = [col for col in orderedCols if col in df.columns]
                 remainingCols = [col for col in df.columns if col not in existingCols]
@@ -347,28 +349,71 @@ def scrape_prods(outputs, settings):
                 print(f"Error: Failed to reorder the df columns")
                 print(err)
                 
-            df.to_csv(path, index=False, encoding="windows-1252")      
+            #df.to_csv(path, index=False, encoding="windows-1252")  
+            # Exporting data to Excel with images downloaded
+            print("Exporting data to Excel with images ...")
+            # Create a Workbook and select the active worksheet
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Products"
 
-def convert_range_string(input_str):
-    if pd.isna(input_str):
-        return input_str
-    # Extract the dictionary part and the unit using regex
-    match = re.match(r"\{(.+?)\}\s*(\S+)", input_str)
-    if not match:
-        return input_str  # Return as-is if the format is unexpected
-    
-    dict_str, unit = match.groups()
-    
-    # Safely parse the dictionary string
-    try:
-        range_dict = ast.literal_eval("{" + dict_str + "}")
-        minimum = range_dict.get('minimum')
-        maximum = range_dict.get('maximum')
+            # Write headers to the Excel sheet
+            for col_idx, col_name in enumerate(df.columns, start=1):
+                ws.cell(row=1, column=col_idx, value=col_name)
+
+            # Add data and images to the Excel sheet
+            for row_idx, row in enumerate(df.itertuples(index=False), start=2):
+                max_image_height = 0  # Track the maximum image height for row adjustment
+                image_width = 0       # Track the image width for column adjustment
+                for col_idx, value in enumerate(row, start=1):
+                    if col_idx == 1:  # "Product Image" 
+                        try:
+                            # Download the image from the URL
+                            response = requests.get(value)
+                            image_data = BytesIO(response.content)
+
+                            # Open the image and add it to the Excel sheet
+                            img = Image(image_data)
+                            img.width, img.height = 100, 100  # Resize image to fit cells
+
+                            # Insert the image at the current cell position
+                            ws.add_image(img, ws.cell(row=row_idx, column=col_idx).coordinate)
+                            # Update max_image_height to match the resized image height
+                            max_image_height = max(max_image_height, img.height)
+                            image_width = max(image_width, img.width)
+                        except Exception as e:
+                            ws.cell(row=row_idx, column=col_idx, value="Image Load Failed")
+                    else:
+                        # Add other values as regular cell data
+                        ws.cell(row=row_idx, column=col_idx, value=value)
+                # Adjust the row height to match the image size
+                ws.row_dimensions[row_idx].height = max_image_height * 0.75
+                # Adjust the column width to match the image width (Excel width unit conversion: ~7 pixels per unit)
+                ws.column_dimensions['A'].width = image_width / 7
+
+            # Save the Excel workbook
+            wb.save(path)
+
+    def convert_range_string(input_str):
+        if pd.isna(input_str):
+            return input_str
+        # Extract the dictionary part and the unit using regex
+        match = re.match(r"\{(.+?)\}\s*(\S+)", input_str)
+        if not match:
+            return input_str  # Return as-is if the format is unexpected
         
-        # Format the output as "min - max unit"
-        return f"{minimum} - {maximum} {unit}"
-    except (ValueError, SyntaxError):
-        return input_str  # Return as-is if there's an error in parsing
+        dict_str, unit = match.groups()
+        
+        # Safely parse the dictionary string
+        try:
+            range_dict = ast.literal_eval("{" + dict_str + "}")
+            minimum = range_dict.get('minimum')
+            maximum = range_dict.get('maximum')
+            
+            # Format the output as "min - max unit"
+            return f"{minimum} - {maximum} {unit}"
+        except (ValueError, SyntaxError):
+            return input_str  # Return as-is if there's an error in parsing
 
 # Sort function
 def sort_description_columns(df, orderedCols):
